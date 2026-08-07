@@ -1,0 +1,112 @@
+name: FBS dashboard
+
+on:
+  schedule:
+    # каждый час в :17 — на ровном часе GitHub перегружен и задерживает запуск
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_finance:
+        description: "Пересобрать финотчёт и ставки прямо сейчас"
+        type: boolean
+        default: false
+      send_telegram:
+        description: "Прислать сводку в Telegram сразу после сборки"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: fbs-dashboard
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Себестоимость из секрета
+        env:
+          COST_JSON: ${{ secrets.COST_JSON }}
+        run: |
+          if [ -n "$COST_JSON" ]; then
+            printf '%s' "$COST_JSON" > cost.json
+            python -c "import json;d=json.load(open('cost.json'));print('себестоимость:',len(d.get('by_article',{})),'артикулов')"
+          else
+            echo "секрет COST_JSON не задан — валовая маржа считаться не будет"
+          fi
+
+      - name: Выгрузка из WB
+        env:
+          WB_TOKEN_OOO: ${{ secrets.WB_TOKEN_OOO }}
+          WB_TOKEN_IP: ${{ secrets.WB_TOKEN_IP }}
+          # финотчёт тяжёлый и жёстко лимитирован: обновляем не чаще раза в 20 часов,
+          # ежечасные прогоны его не трогают
+          WB_FIN_MAX_AGE_H: "20"
+          WB_FORCE_FIN: ${{ github.event.inputs.force_finance == 'true' && '1' || '' }}
+        run: python collect.py
+
+      - name: Свод и страница
+        run: |
+          python aggregate.py
+          python render.py
+
+      - name: Сохранить ставки в репозиторий
+        run: |
+          git config user.name  "fbs-dashboard"
+          git config user.email "actions@github.com"
+          git add -f state/rates.json
+          if ! git diff --cached --quiet; then
+            git commit -m "ставки из финотчёта $(date -u +%F' '%H:%M) UTC"
+            git pull --rebase --autostash || true
+            git push || echo "push не прошёл — попробуем в следующий час"
+          else
+            echo "ставки не изменились"
+          fi
+
+      - name: Сводка в Telegram
+        # раз в сутки в 10:17 МСК (07 UTC) либо по галочке при ручном запуске
+        if: ${{ github.event.inputs.send_telegram == 'true' || github.event_name == 'schedule' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+          NOTIFY_PERIOD: ${{ vars.NOTIFY_PERIOD || 'yday' }}
+          FORCE: ${{ github.event.inputs.send_telegram }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then echo "бот не настроен — пропускаю"; exit 0; fi
+          if [ "$FORCE" != "true" ] && [ "$(date -u +%H)" != "07" ]; then
+            echo "не время сводки (сейчас $(date -u +%H) UTC, шлём в 07 UTC = 10 МСК)"; exit 0
+          fi
+          python notify.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashboard
+          path: dist/wb_fbs_dashboard.html
+          retention-days: 14
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

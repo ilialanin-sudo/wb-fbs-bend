@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FBS · дашборд заказов и юнит-экономики</title>
+<meta name="robots" content="noindex, nofollow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="FBS · заказы и юнит-экономика">
+<meta property="og:description" content="Заказы со склада продавца по двум кабинетам, выкуп по когортам и маржа. Обновляется каждый час.">
+<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<style>
+:root{
+  color-scheme: light;
+  --plane:#f9f9f7; --surface:#fcfcfb;
+  --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --up:#006300;
+  --radius:10px;
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --plane:#0d0d0d; --surface:#1a1a19;
+  --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --up:#0ca30c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--plane); color:var(--ink);
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;
+}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
+h1{font-size:21px;font-weight:650;margin:0 0 2px;letter-spacing:-.01em}
+h2{font-size:15px;font-weight:640;margin:0 0 2px;letter-spacing:-.005em}
+.sub{color:var(--ink2);font-size:13px;margin:0}
+.tiny{color:var(--muted);font-size:12px;line-height:1.45}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 18px 16px;margin-bottom:14px}
+.head{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.stamp{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
+.stamp b{display:block;color:var(--ink);font-size:15px;font-weight:640}
+
+/* сегменты */
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px}
+.seg button{
+  appearance:none;border:0;background:transparent;color:var(--ink2);
+  font:inherit;font-size:13px;font-weight:520;padding:6px 13px;border-radius:6px;cursor:pointer;white-space:nowrap;
+}
+.seg button:hover{background:color-mix(in oklab,var(--ink) 6%,transparent)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface);font-weight:600}
+.seg button small{display:block;font-size:10px;font-weight:450;opacity:.7;margin-top:-1px}
+.seg input[type="date"]{font:inherit;font-size:12.5px;border:1px solid var(--border);background:var(--surface);
+  color:var(--ink);border-radius:6px;padding:4px 7px;color-scheme:inherit}
+#rgo{background:var(--ink)!important;color:var(--surface)!important;font-weight:600}
+.spacer{flex:1}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:1px;background:var(--border);
+      border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.kpi{background:var(--surface);padding:14px 16px 13px}
+.kpi .lab{font-size:11.5px;color:var(--muted);letter-spacing:.01em;margin-bottom:5px;display:flex;align-items:center;gap:5px}
+.kpi .val{font-size:23px;font-weight:640;letter-spacing:-.02em;line-height:1.15}
+.kpi .val.sm{font-size:19px}
+.kpi .note{font-size:11.5px;color:var(--ink2);margin-top:3px}
+.kpi.hero{background:color-mix(in oklab,var(--s1) 7%,var(--surface))}
+.dot{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
+
+/* таблицы */
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap}
+th{color:var(--muted);font-weight:520;font-size:11.5px;text-align:right;border-bottom:1px solid var(--axis)}
+th:first-child,td:first-child{text-align:left}
+tbody tr:hover td{background:color-mix(in oklab,var(--ink) 4%,transparent)}
+tr.total td{font-weight:650;border-top:1px solid var(--axis);border-bottom:0;background:color-mix(in oklab,var(--ink) 3%,transparent)}
+tr.sep td{border-bottom:1px solid var(--axis)}
+td.neg{color:var(--crit)}
+td.pos{color:var(--up)}
+.scroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+.tbl-tall{max-height:420px;overflow-y:auto}
+.tbl-tall thead th{position:sticky;top:0;background:var(--surface);z-index:1}
+
+/* водопад */
+.wf td.name{font-weight:500}
+.wf td.name.step{padding-left:26px;font-weight:400;color:var(--ink2)}
+.wf tr.res td{font-weight:650;background:color-mix(in oklab,var(--s1) 8%,transparent)}
+.wf tr.res.final td{background:color-mix(in oklab,var(--s3) 12%,transparent)}
+.mini{display:inline-block;height:8px;border-radius:2px;vertical-align:middle}
+
+/* графики */
+svg{display:block;width:100%;height:auto;overflow:visible}
+.gl{stroke:var(--grid);stroke-width:1}
+.ax{fill:var(--muted);font-size:11px}
+.hit{fill:transparent;cursor:crosshair}
+.tip{position:fixed;pointer-events:none;z-index:99;background:var(--surface);border:1px solid var(--border);
+     border-radius:8px;padding:9px 11px;font-size:12.5px;box-shadow:0 6px 24px rgba(0,0,0,.16);opacity:0;transition:opacity .1s}
+.tip.on{opacity:1}
+.tip b{display:block;margin-bottom:5px;font-size:12px;color:var(--ink2);font-weight:550}
+.tip .r{display:flex;gap:10px;justify-content:space-between;align-items:center;line-height:1.7}
+.tip .r span:last-child{font-weight:620}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin:2px 0 12px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+
+.flag{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;line-height:1.5;padding:11px 13px;border-radius:8px;
+      background:color-mix(in oklab,var(--warn) 14%,var(--surface));border:1px solid color-mix(in oklab,var(--warn) 32%,transparent);margin-bottom:12px}
+.flag.info{background:color-mix(in oklab,var(--s1) 8%,var(--surface));border-color:color-mix(in oklab,var(--s1) 22%,transparent)}
+.flag svg{flex:none;width:16px;height:16px;margin-top:1px}
+details{border-top:1px solid var(--grid);padding-top:12px;margin-top:4px}
+details summary{cursor:pointer;font-weight:550;font-size:13px;color:var(--ink2);list-style:none;display:flex;gap:7px;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"▸";font-size:11px;color:var(--muted)}
+details[open] summary::before{content:"▾"}
+details .body{padding-top:12px;font-size:12.5px;line-height:1.65;color:var(--ink2)}
+details .body p{margin:0 0 9px}
+details .body code{background:color-mix(in oklab,var(--ink) 7%,transparent);padding:1px 5px;border-radius:4px;font-size:11.5px}
+.iconbtn{appearance:none;border:1px solid var(--border);background:var(--surface);color:var(--ink2);border-radius:8px;
+         width:34px;height:32px;cursor:pointer;font-size:14px;line-height:1}
+.iconbtn:hover{background:color-mix(in oklab,var(--ink) 6%,transparent)}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.pill{font-size:11px;color:var(--ink2);border:1px solid var(--border);border-radius:20px;padding:2px 9px;white-space:nowrap}
+.pill.warn{background:color-mix(in oklab,var(--warn) 16%,transparent);border-color:transparent}
+.pill.ok{background:color-mix(in oklab,var(--good) 14%,transparent);border-color:transparent}
+
+/* на телефоне прячем вторичные колонки, чтобы главное читалось без прокрутки */
+@media(max-width:760px){
+  .wrap{padding:16px 12px 60px}
+  h1{font-size:18px}
+  .card{padding:14px 13px 12px}
+  .kpi .val{font-size:20px}
+  th,td{padding:6px 7px;font-size:12px}
+  .hide-s{display:none}
+  .stamp{text-align:left}
+  .head{gap:8px}
+}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(8px);background:var(--ink);
+  color:var(--surface);padding:9px 16px;border-radius:20px;font-size:13px;opacity:0;transition:.18s;pointer-events:none;z-index:120}
+.toast.on{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div>
+      <h1 id="ttl">FBS · заказы и юнит-экономика</h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <div class="stamp"><b id="stamp"></b><span id="stamp2"></span></div>
+      <button class="iconbtn" id="share" title="Поделиться ссылкой">⇪</button>
+      <button class="iconbtn" id="theme" title="Светлая / тёмная тема">◐</button>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="seg" id="cabs"></div>
+    <div class="seg" id="pers"></div>
+    <div class="seg" id="rangebox" style="display:none;gap:6px;align-items:center;padding:3px 8px">
+      <input type="date" id="r1"><span class="tiny">—</span><input type="date" id="r2">
+      <button id="rgo">Показать</button>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill" id="fbsonly">только FBS · склад продавца</span>
+  </div>
+
+  <div id="flags"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card" id="asm-card" style="margin-top:14px">
+    <div class="sec-h">
+      <div><h2>Сборка и отгрузка</h2>
+      <p class="tiny">оперативная картина на момент обновления · сборочные задания, не статистика</p></div>
+      <span class="pill" id="asm-pill"></span>
+    </div>
+    <div class="kpis" id="asm-now" style="margin-bottom:14px"></div>
+    <div class="scroll"><table><thead><tr>
+      <th>Период</th><th>Создано заданий</th><th>Отгружено</th><th>Отменено до отгрузки</th>
+      <th class="hide-s">Брак</th><th>Ещё на сборке</th><th>Уехало в эти дни, шт</th>
+      <th class="hide-s">Уехало, ₽</th>
+    </tr></thead><tbody id="asm-tbl"></tbody></table></div>
+    <p class="tiny" style="margin-top:10px">Проценты — доля от «создано заданий»; отгружено, отменено, брак и «ещё на сборке» в сумме дают ровно 100 %. Первые пять колонок — что стало с заданиями, созданными в периоде. Отмена здесь — только та, что случилась до отгрузки; если покупатель отказался от уже уехавшего заказа, задание остаётся отгруженным, а сам отказ виден ниже в выкупе по когортам. Последние две — сколько физически уехало именно в эти дни, независимо от того, когда заказ пришёл. Раздел сборки обновляется быстрее статистики, поэтому за сегодня «создано заданий» бывает чуть больше, чем «заказов FBS» наверху.</p>
+    <div style="margin-top:18px" id="tim-wrap">
+      <div class="sec-h"><div><h2 style="font-size:14px">Сроки и путь заказа</h2>
+        <p class="tiny">где сейчас находятся заказы и сколько времени занимает каждый шаг</p></div></div>
+      <div class="kpis" id="tim-kpi" style="margin-bottom:12px"></div>
+      <div class="scroll"><table><thead><tr>
+        <th>Где заказ</th><th>Штук</th><th>Доля</th><th>Медианный возраст</th><th style="width:200px"></th>
+      </tr></thead><tbody id="tim-tbl"></tbody></table></div>
+      <p class="tiny" id="tim-note" style="margin-top:10px"></p>
+
+      <div style="margin-top:16px" id="okr-wrap">
+        <div class="sec-h"><div><h2 style="font-size:14px">Сроки по федеральным округам</h2>
+          <p class="tiny">от заказа до получения покупателем</p></div>
+          <span class="pill" id="okr-pill"></span></div>
+        <div class="scroll"><table><thead><tr>
+          <th>Округ</th><th>Заказов</th><th>Доля</th><th>Выкупов в расчёте</th>
+          <th>Медиана</th><th class="hide-s">Половина укладывается</th><th style="width:170px"></th>
+        </tr></thead><tbody id="okr-tbl"></tbody></table></div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px" id="spd-wrap">
+      <div class="sec-h">
+        <div><h2 style="font-size:14px">Скорость отгрузки и поправка к комиссии</h2>
+        <p class="tiny" id="spd-sub"></p></div>
+        <span class="pill" id="spd-pill"></span>
+      </div>
+      <div class="kpis" id="spd-now" style="margin-bottom:12px"></div>
+      <div class="scroll"><table><thead><tr id="spd-h"></tr></thead><tbody id="spd-tbl"></tbody></table></div>
+      <p class="tiny" id="spd-note" style="margin-top:10px"></p>
+    </div>
+
+    <div style="margin-top:18px">
+      <div class="sec-h"><div><h2 style="font-size:14px">Отгрузки по дням</h2>
+        <p class="tiny">по дате закрытия поставки</p></div></div>
+      <div class="legend" id="asm-lg"></div>
+      <div id="asm-ch"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="sec-h">
+      <div><h2>Что остаётся с заказов периода</h2>
+      <p class="tiny" id="wf-sub"></p></div>
+      <span class="pill" id="wf-pill"></span>
+    </div>
+    <div class="scroll"><table class="wf"><thead><tr>
+      <th>Статья</th><th>Сумма, ₽</th><th class="hide-s">На заказ, ₽</th><th class="hide-s">На выкуп, ₽</th>
+      <th>% от выручки</th><th class="hide-s" style="width:130px"></th>
+    </tr></thead><tbody id="wf"></tbody></table></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-h"><div><h2>Заказы FBS по дням</h2><p class="tiny">сырые заказы, цена продавца</p></div></div>
+      <div class="legend" id="lg1"></div>
+      <div id="ch1"></div>
+    </div>
+    <div class="card">
+      <div class="sec-h"><div><h2>Доля FBS во всех заказах кабинета</h2><p class="tiny">FBS ÷ (FBS + FBW), по штукам</p></div></div>
+      <div class="legend" id="lg2"></div>
+      <div id="ch2"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-h">
+      <div><h2>Созревание когорт</h2>
+      <p class="tiny">строка — день заказа. Дальше видно, что с этими заказами стало на текущий момент</p></div>
+      <span class="pill" id="coh-pill"></span>
+    </div>
+    <div class="scroll"><table><thead><tr>
+      <th>День заказа</th><th>Возраст</th><th>Заказов</th><th class="hide-s">Сумма, ₽</th>
+      <th class="hide-s">Выкуплено</th><th>% выкупа</th><th class="hide-s">Отменено</th><th>% отмен</th>
+      <th>Ещё едет</th><th class="hide-s">Возвраты</th><th class="hide-s"></th>
+    </tr></thead><tbody id="coh"></tbody></table></div>
+    <p class="tiny" style="margin-top:10px">У WB <code>isCancel</code> ставится и на отмену, и на невыкуп, и приходит с задержкой. Поэтому у свежих строк отмен почти нет — это не значит, что их не будет.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-h"><div><h2>Заказы сегодня по часам</h2><p class="tiny" id="hr-sub"></p></div></div>
+      <div id="ch3"></div>
+    </div>
+    <div class="card">
+      <div class="sec-h"><div><h2>Выкуп по когортам</h2><p class="tiny">% выкупа в зависимости от возраста заказа</p></div></div>
+      <div class="legend" id="lg4"></div>
+      <div id="ch4"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-h">
+      <div><h2>Артикулы FBS за 28 дней</h2><p class="tiny">сортировка — клик по заголовку</p></div>
+      <span class="pill" id="sku-pill"></span>
+    </div>
+    <div class="scroll tbl-tall"><table><thead><tr id="sku-h"></tr></thead><tbody id="sku"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-h"><div><h2>Ставки, по которым считается экономика</h2>
+      <p class="tiny">взяты по факту из финотчёта, сшитого с заказами по <code>srid</code></p></div></div>
+    <div class="scroll"><table><thead><tr>
+      <th>Показатель</th><th>ООО</th><th>ИП</th><th>Откуда</th>
+    </tr></thead><tbody id="rates"></tbody></table></div>
+
+    <details><summary>Методика: что и как считается</summary><div class="body" id="method"></div></details>
+  </div>
+
+  <p class="tiny" style="margin-top:18px">Обновляется ежечасно. Все суммы — рубли, время московское.</p>
+</div>
+
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const D = __DATA__;
+
+/* ---------------------------------------------------------------- утилиты */
+const $ = s => document.querySelector(s);
+const fmt = (v, d=0) => v==null || !isFinite(v) ? "—"
+  : (d ? v.toLocaleString("ru-RU",{minimumFractionDigits:d,maximumFractionDigits:d})
+       : Math.round(v).toLocaleString("ru-RU"));
+const pct = (v, d=1) => v==null || !isFinite(v) ? "—" : (v*100).toFixed(d).replace(".",",")+" %";
+const money = v => v==null ? "—" : fmt(v)+" ₽";
+const kk = v => v==null ? "—" : Math.abs(v)>=1e6 ? (v/1e6).toFixed(2).replace(".",",")+" млн"
+                            : Math.abs(v)>=1e4 ? Math.round(v/1e3)+" тыс" : fmt(v);
+const dmy = s => { const [y,m,d]=s.split("-"); return d+"."+m; };
+const DOW = ["пн","вт","ср","чт","пт","сб","вс"];
+const dow = s => DOW[(new Date(s+"T12:00:00").getDay()+6)%7];
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let CAB = D.cabinets.length>1 ? "total" : D.cabinets[0].key;
+let PER = (D.total && D.total.today && D.total.today.ord_qty) ? "today" : "yday";
+const CABLIST = [...D.cabinets.map(c=>({key:c.key,title:c.title})),
+                 ...(D.cabinets.length>1 ? [{key:"total",title:"Итого"}] : [])];
+const COLOR = {}; D.cabinets.forEach((c,i)=>COLOR[c.key]=["var(--s1)","var(--s2)","var(--s3)"][i]||"var(--s1)");
+COLOR.total = "var(--s3)";
+
+let RANGE = null;              // {start, end} когда выбран свой период
+
+function calcRange(cab, lo, hi){
+  // Считаем тот же водопад, что и на сервере, но за произвольные даты.
+  // Дневные ряды и ставки лежат в данных, поэтому пересчёт честный, а не прикидка.
+  const coh = (D.cohorts||{})[cab]||[], dly = (D.daily||{})[cab]||{}, R = (D.rates||{})[cab]||{};
+  const inR = d => d>=lo && d<=hi;
+  const a = {ord_qty:0, ord_sum:0, ord_customer:0, cancel_qty:0, bought_qty:0, bought_sum:0,
+             ret_qty:0, cost_known:0, cost_qty:0};
+  coh.forEach(r=>{ if(!inR(r.date)) return;
+    a.ord_qty+=r.raw; a.ord_sum+=r.raw_sum; a.ord_customer+=r.customer||0;
+    a.cancel_qty+=r.cancel; a.bought_qty+=r.bought; a.bought_sum+=r.bought_sum;
+    a.ret_qty+=r.ret; a.cost_known+=r.cost_known||0; a.cost_qty+=r.cost_qty||0; });
+  let allQ=0, allS=0, fbsS=0, spend=0;
+  Object.keys(dly.all_qty||{}).forEach(d=>{ if(inR(d)) allQ+=dly.all_qty[d]||0; });
+  Object.keys(dly.all_sum||{}).forEach(d=>{ if(inR(d)) allS+=dly.all_sum[d]||0; });
+  Object.keys(dly.fbs_sum||{}).forEach(d=>{ if(inR(d)) fbsS+=dly.fbs_sum[d]||0; });
+  Object.keys(dly.adv||{}).forEach(d=>{ if(inR(d)) spend+=dly.adv[d]||0; });
+  // как на сервере: доля FBS считается от сумм за весь период, а не по каждому дню
+  const share = allS ? fbsS/allS : 0, ads = spend*share;
+
+  a.pending_qty = a.ord_qty - a.bought_qty - a.cancel_qty;
+  a.all_ord_qty = allQ; a.all_ord_sum = allS;
+  a.fbs_share_qty = allQ ? a.ord_qty/allQ : 0;
+  a.fbs_share_sum = allS ? a.ord_sum/allS : 0;
+  a.cancel_now = a.ord_qty ? a.cancel_qty/a.ord_qty : 0;
+  a.buyout_now = a.ord_qty ? a.bought_qty/a.ord_qty : 0;
+  a.avg_price = a.ord_qty ? a.ord_sum/a.ord_qty : 0;
+  a.avg_customer = a.ord_qty ? a.ord_customer/a.ord_qty : 0;
+  a.spp_fact = a.ord_sum ? 1-a.ord_customer/a.ord_sum : 0;
+  a.adv_cabinet = spend; a.fbs_share = share;
+  a.ads = ads; a.ads_note = dly.ads_note || "";
+  a.sku_qty = null;
+
+  const buyout = R.buyout||0;
+  a.buyout = buyout;
+  a.exp_buyout_qty = a.ord_qty*buyout;
+  a.revenue = a.ord_sum*buyout;
+  a.payout = R.payout_share==null ? null : a.revenue*R.payout_share;
+  a.commission = a.payout==null ? null : a.revenue-a.payout;
+  a.logistics = R.logistics_per_order==null ? null : a.ord_qty*R.logistics_per_order;
+  a.logistics_fwd = R.logistics_fwd_per_order==null ? null : a.ord_qty*R.logistics_fwd_per_order;
+  a.logistics_back = R.logistics_back_per_order==null ? null : a.ord_qty*R.logistics_back_per_order;
+  a.handling = a.ord_qty*(R.handling_per_order||0);
+  a.penalty = a.ord_qty*(R.penalty_per_order||0);
+  a.cost_cover = a.ord_qty ? a.cost_qty/a.ord_qty : 0;
+  a.cost_unknown_qty = a.ord_qty - a.cost_qty;
+  a.avg_cost = a.cost_qty ? a.cost_known/a.cost_qty : null;
+  a.cogs = a.avg_cost==null ? null : a.avg_cost*a.exp_buyout_qty;
+  a.buyout_rub = a.ord_sum ? a.revenue/a.ord_sum : 0;
+  if(a.payout!=null && a.logistics!=null){
+    a.margin_wb = a.payout - a.logistics - a.handling - a.penalty - a.ads;
+    a.margin_wb_pct = a.revenue ? a.margin_wb/a.revenue : 0;
+    a.margin_wb_of_ordered = a.ord_sum ? a.margin_wb/a.ord_sum : 0;
+    a.margin_wb_per_order = a.ord_qty ? a.margin_wb/a.ord_qty : 0;
+    if(a.cogs!=null){
+      a.gross = a.margin_wb - a.cogs;
+      a.gross_pct = a.revenue ? a.gross/a.revenue : 0;
+      a.gross_of_ordered = a.ord_sum ? a.gross/a.ord_sum : 0;
+      a.gross_per_order = a.ord_qty ? a.gross/a.ord_qty : 0;
+      a.gross_per_buyout = a.exp_buyout_qty ? a.gross/a.exp_buyout_qty : 0;
+    } else { a.gross=a.gross_pct=a.gross_of_ordered=a.gross_per_order=a.gross_per_buyout=null; }
+  } else {
+    a.margin_wb=a.margin_wb_pct=a.margin_wb_of_ordered=a.margin_wb_per_order=null;
+    a.gross=a.gross_pct=a.gross_of_ordered=a.gross_per_order=a.gross_per_buyout=null;
+  }
+  return a;
+}
+
+function sumRange(lo, hi){
+  const parts = D.cabinets.map(c=>calcRange(c.key, lo, hi));
+  const out = {};
+  const SUM = ["ord_qty","ord_sum","ord_customer","cancel_qty","bought_qty","bought_sum",
+    "ret_qty","pending_qty","adv_cabinet","ads","exp_buyout_qty","cost_unknown_qty","cost_qty",
+    "cost_known","all_ord_qty","all_ord_sum","revenue","payout","commission","logistics",
+    "logistics_fwd","logistics_back","handling","penalty","cogs","margin_wb","gross"];
+  SUM.forEach(f=>{ const v=parts.map(p=>p[f]);
+    out[f] = v.some(x=>x==null) ? null : v.reduce((a,b)=>a+b,0); });
+  const n = out.ord_qty;
+  out.cancel_now = n ? out.cancel_qty/n : 0;
+  out.buyout_now = n ? out.bought_qty/n : 0;
+  out.buyout = n ? out.exp_buyout_qty/n : 0;
+  out.avg_price = n ? out.ord_sum/n : 0;
+  out.avg_customer = n ? out.ord_customer/n : 0;
+  out.spp_fact = out.ord_sum ? 1-out.ord_customer/out.ord_sum : 0;
+  out.fbs_share_qty = out.all_ord_qty ? n/out.all_ord_qty : 0;
+  out.fbs_share_sum = out.all_ord_sum ? out.ord_sum/out.all_ord_sum : 0;
+  out.cost_cover = n ? out.cost_qty/n : 0;
+  // как на сервере: средняя себестоимость итого — взвешенная по ожидаемому выкупу
+  out.avg_cost = out.cogs && out.exp_buyout_qty ? out.cogs/out.exp_buyout_qty : null;
+  out.buyout_rub = out.ord_sum ? out.revenue/out.ord_sum : 0;
+  out.fbs_share = null;
+  out.margin_wb_pct = out.margin_wb!=null && out.revenue ? out.margin_wb/out.revenue : null;
+  out.margin_wb_of_ordered = out.margin_wb!=null && out.ord_sum ? out.margin_wb/out.ord_sum : null;
+  out.margin_wb_per_order = out.margin_wb!=null && n ? out.margin_wb/n : null;
+  out.gross_pct = out.gross!=null && out.revenue ? out.gross/out.revenue : null;
+  out.gross_of_ordered = out.gross!=null && out.ord_sum ? out.gross/out.ord_sum : null;
+  out.gross_per_order = out.gross!=null && n ? out.gross/n : null;
+  out.gross_per_buyout = out.gross!=null && out.exp_buyout_qty ? out.gross/out.exp_buyout_qty : null;
+  out.ads_note = parts[0] ? parts[0].ads_note : "";
+  out.sku_qty = null;
+  return out;
+}
+
+const pdata = () => RANGE
+  ? (CAB==="total" ? sumRange(RANGE.start, RANGE.end) : calcRange(CAB, RANGE.start, RANGE.end))
+  : (CAB==="total" ? D.total[PER] : D.data[CAB][PER]);
+const pmeta = () => RANGE
+  ? {key:"range", label:"Свой период", start:RANGE.start, end:RANGE.end,
+     partial: RANGE.end >= new Date(Date.now()+3*3600e3).toISOString().slice(0,10),
+     days: Math.round((new Date(RANGE.end)-new Date(RANGE.start))/864e5)+1}
+  : D.period_meta.find(p=>p.key===PER);
+
+/* ------------------------------------------------------------------ шапка */
+$("#ttl").textContent = (D.brand ? D.brand+" · " : "") + "FBS · заказы и юнит-экономика";
+$("#sub").textContent = "Два кабинета одного бренда. В расчёт идут только заказы со склада продавца — модель FBW исключена целиком.";
+$("#stamp").textContent = D.generated_human;
+$("#stamp2").textContent = "обновлено, МСК";
+
+function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("on");
+  clearTimeout(window.__tt); window.__tt=setTimeout(()=>el.classList.remove("on"),2200); }
+$("#share").onclick = async () => {
+  const url = location.href.split("#")[0];
+  const title = document.title;
+  if(location.protocol==="file:"){ toast("Это локальная копия — ссылкой поделиться нельзя"); return; }
+  try{
+    if(navigator.share){ await navigator.share({title, url}); return; }
+    await navigator.clipboard.writeText(url); toast("Ссылка скопирована");
+  }catch(e){
+    if(e && e.name==="AbortError") return;
+    toast("Скопируйте адрес из строки браузера");
+  }
+};
+$("#theme").onclick = () => {
+  const d = document.documentElement;
+  d.dataset.theme = d.dataset.theme==="dark" ? "light" : "dark";
+  try{ localStorage.setItem("wbtheme", d.dataset.theme); }catch(e){}
+  drawAll();
+};
+try{ const t=localStorage.getItem("wbtheme"); if(t) document.documentElement.dataset.theme=t; }catch(e){}
+if(!localStorage.getItem("wbtheme") && matchMedia("(prefers-color-scheme: dark)").matches)
+  document.documentElement.dataset.theme="dark";
+
+/* --------------------------------------------------------------- сегменты */
+$("#cabs").innerHTML = CABLIST.map(c=>
+  `<button data-cab="${c.key}" aria-pressed="${c.key===CAB}">${c.title}</button>`).join("");
+$("#pers").innerHTML = D.period_meta.map(p=>
+  `<button data-per="${p.key}" aria-pressed="${p.key===PER}">${p.label}<small>${
+    p.days===1 ? dmy(p.start) : dmy(p.start)+"–"+dmy(p.end)}</small></button>`).join("")
+  + `<button data-per="range" aria-pressed="false">Свой период<small>календарь</small></button>`;
+
+const allDays = (D.cohorts_total||[]).map(r=>r.date).sort();
+const DMIN = allDays[0], DMAX = allDays[allDays.length-1];
+if(DMIN){ $("#r1").min=$("#r2").min=DMIN; $("#r1").max=$("#r2").max=DMAX;
+  $("#r1").value = allDays[Math.max(0, allDays.length-7)]; $("#r2").value = DMAX; }
+$("#rgo").onclick = () => {
+  let a=$("#r1").value, b=$("#r2").value;
+  if(!a||!b) return;
+  if(a>b){ const t=a; a=b; b=t; $("#r1").value=a; $("#r2").value=b; }
+  RANGE = {start:a, end:b}; PER="range"; render();
+};
+$("#cabs").onclick = e => { const b=e.target.closest("button"); if(!b)return; CAB=b.dataset.cab; render(); };
+$("#pers").onclick = e => { const b=e.target.closest("button"); if(!b)return;
+  PER=b.dataset.per;
+  if(PER==="range"){ if(!RANGE) RANGE={start:$("#r1").value, end:$("#r2").value}; }
+  else RANGE=null;
+  render(); };
+
+/* ------------------------------------------------------------------ флаги */
+function flags(){
+  const out=[];
+  const rr = CAB==="total" ? D.cabinets.map(c=>D.rates[c.key]) : [D.rates[CAB]];
+  const proxy = rr.filter(r=>r && /прокси|кабинет/.test(r.buyout_source||""));
+  if(proxy.length){
+    out.push(`<div class="flag"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.6 15 14H1L8 1.6Zm0 3.3L3.4 12.8h9.2L8 4.9Zm-.7 2.3h1.4v3.2H7.3V7.2Zm0 4h1.4v1.3H7.3v-1.3Z"/></svg>
+      <div><b>Выкуп FBS пока не измерен и подставлен как прокси.</b> FBS запущен ${D.meta[D.cabinets[0].key].first_order ? dmy(D.meta[D.cabinets[0].key].first_order)+"" : "недавно"}, заказу нужно 7–14 дней, чтобы доехать до покупателя. Пока дозревших когорт FBS мало, берётся выкуп кабинета целиком. Как только когорт хватит, страница переключится на них сама — источник всегда написан в таблице ставок ниже.</div></div>`);
+  }
+  const p = pdata();
+  if(p && p.cost_cover!=null && p.cost_cover<0.95){
+    out.push(`<div class="flag"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.6 15 14H1L8 1.6Zm0 3.3L3.4 12.8h9.2L8 4.9Zm-.7 2.3h1.4v3.2H7.3V7.2Zm0 4h1.4v1.3H7.3v-1.3Z"/></svg>
+      <div><b>Себестоимость известна для ${pct(p.cost_cover,0)} заказов.</b> Остальным подставлена средняя по покрытым артикулам, поэтому валовая маржа — оценка. Допишите недостающие артикулы в файл себестоимости, и цифра станет точной.</div></div>`);
+  }
+  if(pmeta() && pmeta().partial)
+    out.push(`<div class="flag info"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 1.4A5.6 5.6 0 1 1 8 13.6 5.6 5.6 0 0 1 8 2.4Zm-.7 2.1h1.4v1.4H7.3V4.5Zm0 2.6h1.4v4.4H7.3V7.1Z"/></svg>
+      <div>Период неполный — считается по текущий момент, сравнивать с полными днями напрямую нельзя.</div></div>`);
+  $("#flags").innerHTML = out.join("");
+}
+
+/* -------------------------------------------------------------------- KPI */
+function kpis(){
+  const p = pdata(), m = pmeta();
+  const cabTitle = CAB==="total" ? "оба кабинета" : (CABLIST.find(c=>c.key===CAB)||{}).title;
+  const cards = [
+    {lab:"Заказов FBS", val:fmt(p.ord_qty)+" шт", note:money(p.ord_sum)},
+    {lab:"Средняя цена заказа", val:money(p.avg_price), note:"клиент платит "+money(p.avg_customer)+" · СПП "+pct(p.spp_fact,0)},
+    {lab:"Доля FBS в кабинете", val:pct(p.fbs_share_qty,1), note:fmt(p.ord_qty)+" из "+fmt(p.all_ord_qty)+" заказов"},
+    {lab:"Ожидаемый выкуп", val:pct(p.buyout,1), note:"≈ "+fmt(p.exp_buyout_qty)+" шт · выкуплено уже "+fmt(p.bought_qty)},
+    {lab:"После вычетов WB", val:money(p.margin_wb), note:p.margin_wb_pct==null?"—":pct(p.margin_wb_pct)+" от выручки"},
+    {lab:"Валовая маржа", val:money(p.gross), note:p.gross_pct==null?"нет себестоимости":pct(p.gross_pct)+" от выручки · "+money(p.gross_per_order)+" с заказа", hero:true},
+  ];
+  $("#kpis").innerHTML = cards.map(c=>`<div class="kpi${c.hero?" hero":""}">
+      <div class="lab">${c.lab}</div>
+      <div class="val${String(c.val).length>13?" sm":""}">${c.val}</div>
+      <div class="note">${c.note}</div></div>`).join("");
+  $("#wf-sub").textContent = `${cabTitle} · ${m.label.toLowerCase()} · ${dmy(m.start)}–${dmy(m.end)} · база — сырые заказы, включая те, что ещё отменятся`;
+}
+
+/* ---------------------------------------------------- сборка и отгрузка */
+function assembly(){
+  const A = CAB==="total" ? D.assembly_total : (D.assembly||{})[CAB];
+  const card = $("#asm-card");
+  if(!A){ card.style.display="none"; return; }
+  card.style.display="";
+  const n = A.now;
+  const stale = n.oldest && n.oldest < new Date(Date.now()-864e5).toISOString().slice(0,10);
+  $("#asm-now").innerHTML = [
+    {lab:"Сейчас на сборке", val:fmt(n.total)+" шт", note:money(n.total_sum), hero:true},
+    {lab:"Не взято в работу", val:fmt(n.fresh)+" шт", note:"новые задания, поставка не создана"},
+    {lab:"Собрано в поставку", val:fmt(n.in_supply)+" шт", note:"поставка ещё не закрыта"},
+    {lab:"Самое старое задание", val:n.oldest?dmy(n.oldest)+", "+dow(n.oldest):"—",
+     note:n.oldest?daysAgo(n.oldest):"очередь пуста"},
+  ].map(c=>`<div class="kpi${c.hero?" hero":""}">
+      <div class="lab">${c.lab}</div><div class="val${String(c.val).length>13?" sm":""}">${c.val}</div>
+      <div class="note">${c.note}</div></div>`).join("");
+  $("#asm-pill").textContent = stale ? "есть задания старше суток" : "очередь свежая";
+  $("#asm-pill").className = "pill " + (stale ? "warn" : "ok");
+
+  $("#asm-tbl").innerHTML = D.assembly_periods.map(pm=>{
+    const p = A.periods[pm.key]; if(!p) return "";
+    // доля от «создано»: эти четыре колонки в сумме дают ровно 100 %
+    const sh = v => p.created ? ` <span class="tiny">${pct(v/p.created,0)}</span>` : "";
+    return `<tr><td>${p.label}${p.days>1?` <span class="tiny">${dmy(p.start)}–${dmy(p.end)}</span>`:""}</td>
+      <td>${fmt(p.created)}</td>
+      <td class="pos">${fmt(p.shipped)}${sh(p.shipped)}</td>
+      <td class="${p.cancel?"neg":""}">${fmt(p.cancel)}${sh(p.cancel)}</td>
+      <td class="hide-s ${p.defect?"neg":""}">${fmt(p.defect)}${sh(p.defect)}</td>
+      <td><b>${fmt(p.assembling)}</b>${sh(p.assembling)}</td>
+      <td>${fmt(p.shipped_in_days)}</td>
+      <td class="hide-s">${fmt(p.shipped_in_days_sum)}</td></tr>`;
+  }).join("");
+
+  timing(A);
+  speed(A);
+
+  const cabs = D.cabinets;
+  const vis = CAB==="total" ? cabs : cabs.filter(c=>c.key===CAB);
+  const dates = (A.days||[]).map(r=>r.date);
+  const rows = dates.map(d=>{
+    const o = {date:d};
+    vis.forEach(c=>{ const r=((D.assembly||{})[c.key]||{days:[]}).days.find(x=>x.date===d);
+                     o[c.key] = r ? r.shipped : 0; });
+    return o;
+  });
+  barChart($("#asm-ch"), rows, {keys:vis.map(c=>c.key), h:190,
+    series:vis.map(c=>({name:c.title,color:COLOR[c.key]})),
+    fmtY:v=>fmt(v), fmtT:v=>fmt(v)+" шт"});
+  legend($("#asm-lg"), vis.map(c=>({name:c.title,color:COLOR[c.key]})));
+}
+function timing(A){
+  const T = A.timing, wrap = $("#tim-wrap");
+  if(!T || !(T.funnel||[]).length){ wrap.style.display="none"; return; }
+  wrap.style.display="";
+  const dd = v => v==null ? "—" : String(v).replace(".",",")+" дн";
+  $("#tim-kpi").innerHTML = [
+    {lab:"Заказ → ПВЗ", val:T.to_pvz==null?"—":T.to_pvz+" дн",
+     note:"за столько доезжает половина заказов", hero:true},
+    {lab:"Заказ → выкуп", val:dd(T.to_buyout&&T.to_buyout.median),
+     note:T.to_buyout?fmt(T.to_buyout.qty)+" выкупов в расчёте":"данных мало"},
+    {lab:"Невыкуп → товар на складе", val:dd(T.return_lag&&T.return_lag.median),
+     note:T.return_lag?fmt(T.return_lag.qty)+" возвратов в расчёте":"ждём закрытия финотчёта"},
+    {lab:"Едут прямо сейчас", val:fmt((T.funnel.find(f=>f.key==="sorted")||{}).qty||0)+" шт",
+     note:"плюс "+fmt((T.funnel.find(f=>f.key==="ready_for_pickup")||{}).qty||0)+" ждут на ПВЗ"},
+  ].map(c=>`<div class="kpi${c.hero?" hero":""}">
+      <div class="lab">${c.lab}</div><div class="val${String(c.val).length>13?" sm":""}">${c.val}</div>
+      <div class="note">${c.note}</div></div>`).join("");
+
+  const tot = T.funnel.reduce((a,f)=>a+f.qty,0) || 1;
+  const mx = Math.max(...T.funnel.map(f=>f.qty));
+  const COL = {waiting:"var(--s1)", sorted:"var(--s1)", ready_for_pickup:"var(--s3)",
+               sold:"var(--s3)", canceled_by_client:"var(--crit)",
+               declined_by_client:"var(--crit)", defect:"var(--crit)"};
+  $("#tim-tbl").innerHTML = T.funnel.map(f=>
+    `<tr><td>${f.label}</td><td>${fmt(f.qty)}</td><td>${pct(f.qty/tot,0)}</td>
+      <td>${dd(f.median_age)}</td>
+      <td><span class="mini" style="width:${Math.round(f.qty/mx*100)}%;min-width:2px;background:${COL[f.key]||"var(--s1)"}"></span></td></tr>`).join("");
+
+  // сроки по округам
+  const OK = (T.okrugs||[]).filter(o=>o.orders>0);
+  const okw = $("#okr-wrap");
+  if(!OK.length){ okw.style.display="none"; }
+  else {
+    okw.style.display="";
+    const totO = OK.reduce((a,o)=>a+o.orders,0);
+    const med = a => a.length ? a[Math.floor(a.length/2)] : null;
+    const MIN = 5;
+    const meds = OK.map(o=>med(o.lags)).filter(v=>v!=null);
+    const mx = meds.length ? Math.max(...meds) : 1;
+    const thin = OK.filter(o=>o.lags.length<MIN).length;
+    $("#okr-pill").textContent = thin ? thin+" округов пока без статистики" : "везде хватает данных";
+    $("#okr-pill").className = "pill " + (thin ? "warn" : "ok");
+    $("#okr-tbl").innerHTML = OK.map(o=>{
+      const m = o.lags.length>=MIN ? med(o.lags) : null;
+      const p25 = o.lags.length>=MIN ? o.lags[Math.floor(o.lags.length*.25)] : null;
+      const p75 = o.lags.length>=MIN ? o.lags[Math.floor(o.lags.length*.75)] : null;
+      const w = m!=null ? Math.round(m/mx*100) : 0;
+      return `<tr><td>${esc(o.name)}</td><td>${fmt(o.orders)}</td><td>${pct(o.orders/totO,0)}</td>
+        <td>${fmt(o.lags.length)}</td>
+        <td><b>${m==null?"мало данных":m.toFixed(1).replace(".",",")+" дн"}</b></td>
+        <td class="hide-s">${p25==null?"—":p25.toFixed(1).replace(".",",")+"–"+p75.toFixed(1).replace(".",",")+" дн"}</td>
+        <td>${m==null?"":`<span class="mini" style="width:${w}%;min-width:2px;background:var(--s1)"></span>`}</td></tr>`;
+    }).join("");
+  }
+
+  $("#tim-note").innerHTML =
+    "Отметки «прибыл в ПВЗ» в API нет, поэтому срок доставки оценивается по когортам: " +
+    "берётся доля заказов каждого возраста, уже доехавших до ПВЗ или дальше, и ищется точка 50 %. " +
+    "Возраст считается от момента заказа, поэтому у «получен покупателем» он большой — " +
+    "это не срок доставки, а сколько заказу лет на сейчас. " +
+    "«Невыкуп → товар на складе» берётся из обратной логистики в финотчёте: сколько дней от заказа " +
+    "до дня, когда WB провёл возврат.";
+}
+
+function speed(A){
+  const S = A.speed, B = D.speed_buckets||[];
+  const wrap = $("#spd-wrap");
+  if(!S || !S.qty){ wrap.style.display="none"; return; }
+  wrap.style.display="";
+  const pp = v => v==null?"—":(v>0?"+":"")+v.toFixed(2).replace(".",",")+" п.п.";
+  // корзины со скидкой красим зелёным, с надбавкой — красным
+  const col = i => (B[i].delta!=null && B[i].delta<0) ? "pos" : (B[i].per_hour ? "neg" : "");
+
+  $("#spd-sub").textContent =
+    "сколько часов прошло от заказа покупателем до " +
+    (S.basis==="scan" ? "приёмки поставки на стороне WB" : "закрытия поставки");
+  $("#spd-pill").textContent = S.gap>0.05 ? "недобираем "+pp(-S.gap) : "работаем на максимальной скидке";
+  $("#spd-pill").className = "pill " + (S.gap>0.05 ? "warn" : "ok");
+
+  const risk = (S.queue_buckets||[]).reduce((a,v,i)=>i>0?a+v:a,0);
+  $("#spd-now").innerHTML = [
+    {lab:"Поправка к комиссии", val:pp(S.delta), note:"лучшая возможная "+pp(S.best_delta), hero:true},
+    {lab:"Недобираем", val:pp(-S.gap), note:money(S.gap_money)+" за 10 дней"},
+    {lab:"В очереди рискуют", val:fmt(risk)+" шт", note:risk?"уже вышли за 13 часов":"все ещё в максимальной скидке"},
+    {lab:"Уже потеряно на очереди", val:money(S.queue_lost_money), note:pp(-S.queue_lost)+" на "+money(S.queue_sum)},
+  ].map(c=>`<div class="kpi${c.hero?" hero":""}">
+      <div class="lab">${c.lab}</div><div class="val${String(c.val).length>13?" sm":""}">${c.val}</div>
+      <div class="note">${c.note}</div></div>`).join("");
+
+  $("#spd-h").innerHTML = `<th>День заказа</th><th>Заказано</th><th>Отгружено</th>` +
+    B.map((b,i)=>`<th>${b.label}</th>`).join("") + `<th>Ещё не уехало</th><th>Поправка</th>`;
+
+  // Все проценты в строке — от «заказано», поэтому строка складывается ровно в 100 %:
+  // корзины + «ещё не уехало» = весь день. Иначе возникает вопрос
+  // «отгружено 234 из 476, а в корзине 100 % — где остальные».
+  const rows = (S.days||[]).slice().reverse().map(r=>{
+    const base = r.created || r.qty || 1;
+    const left = (r.created!=null ? r.created : r.qty) - r.qty;
+    const why = r.pending!=null
+      ? [r.pending?fmt(r.pending)+" на сборке":"", r.cancel?fmt(r.cancel)+" отменено":""].filter(Boolean).join(" · ")
+      : "";
+    return `<tr><td>${dmy(r.date)}, ${dow(r.date)}</td>
+      <td>${fmt(r.created!=null?r.created:r.qty)}</td>
+      <td>${fmt(r.qty)}${r.created?` <span class="tiny">${pct(r.qty/base,0)}</span>`:""}</td>` +
+    B.map((b,i)=>{const n=r.buckets[i];
+      return `<td class="${n?col(i):""}">${n?fmt(n)+` <span class="tiny">${pct(n/base,0)}</span>`:"—"}</td>`;}).join("") +
+    `<td${why?` title="${why}"`:""}>${left>0?fmt(left)+` <span class="tiny">${pct(left/base,0)}</span>`:"—"}</td>
+     <td><b>${pp(r.delta)}</b></td></tr>`;}).join("");
+  const q = (S.queue_buckets||[]).reduce((a,v)=>a+v,0);
+  const qrow = q ? `<tr class="total"><td>Сейчас на сборке</td><td>${fmt(q)}</td><td>—</td>` +
+    B.map((b,i)=>{const n=S.queue_buckets[i];
+      return `<td class="${n?col(i):""}">${n?fmt(n)+` <span class="tiny">${pct(n/q,0)}</span>`:"—"}</td>`;}).join("") +
+    `<td>—</td>
+     <td>${pp(S.queue_lost?S.best_delta+S.queue_lost:S.best_delta)}</td></tr>` : "";
+  $("#spd-tbl").innerHTML = rows + qrow;
+
+  $("#spd-note").innerHTML =
+    "«Заказано» — все задания этого дня, «отгружено» — сколько из них уже уехало. " +
+    "Все проценты — от заказанного, поэтому корзины и «ещё не уехало» вместе дают ровно 100 %: " +
+    "у свежего дня основная часть просто ещё на сборке. Часы отсчитываются от заказа покупателем. " +
+    "Пороги — те, по которым WB считает коэффициент продаж со склада продавца: до 13 ч комиссия минус 5 пунктов, " +
+    "13–42 ч минус 3,5, 42–48 ч базовая, дальше надбавка за каждый час начиная с 48-го. " +
+    "Последняя строка — что висит на сборке прямо сейчас, разложенное по тому, сколько часов уже прошло: " +
+    "видно, сколько заданий ещё успевают на максимальную скидку. " +
+    "В «ещё не уехало» попадает и то, что висит на сборке, и то, что отменили до отгрузки — наведите на число, чтобы увидеть разбивку." +
+    (S.fallback_share>0.01 ? " У " + pct(S.fallback_share,0) + " заданий WB ещё не проставил отметку приёмки — " +
+      "они посчитаны по закрытию поставки и могут сместиться на корзину хуже." : "");
+}
+
+function daysAgo(d){
+  const n = Math.round((new Date().setHours(0,0,0,0) - new Date(d+"T00:00:00")) / 864e5);
+  return n<=0 ? "создано сегодня" : n===1 ? "вчера" : n+" дн. назад";
+}
+
+/* --------------------------------------------------------------- водопад */
+/* 46,7 % — это не ставка комиссии, а всё, что WB удерживает с цены продавца.
+   Раскладываем прямо в строке, чтобы не приходилось спрашивать. */
+function commSub(p){
+  const rs = D.rates||{}, keys = CAB==="total" ? Object.keys(rs) : [CAB];
+  const cs = [...new Set(keys.map(k=>(rs[k]||{}).base_commission).filter(v=>v!=null))];
+  if(cs.length!==1 || p.commission==null || !p.revenue) return "";
+  const c = cs[0], kept = p.commission/p.revenue*100, rest = kept-c;
+  return `в финотчёте комиссия ${fmt(c,1)} % от цены продавца — скидка за скорость уже внутри`
+       + (rest>0.2 ? `, ещё ${fmt(rest,1)} п.п. — эквайринг` : "");
+}
+
+function waterfall(){
+  const p = pdata(), n = p.ord_qty, b = p.exp_buyout_qty;
+  const base = p.ord_sum || 1;
+  const per = v => v==null || !n ? null : v/n;
+  const pb  = v => v==null || !b ? null : v/b;
+  const rev = p.revenue || 1;
+  const rows = [
+    {n:"Заказано, цена продавца до скидки WB", v:p.ord_sum, kind:"base", norev:true, note:"вся база периода"},
+    {n:`Не выкупят (${pct(1-(p.ord_sum?p.revenue/p.ord_sum:p.buyout),0)} заказов)`, v:-(p.ord_sum-p.revenue), kind:"step", norev:true},
+    {n:"Выручка ожидаемая", v:p.revenue, kind:"res"},
+    {n:"Комиссия WB и эквайринг", v:p.commission==null?null:-p.commission, kind:"step", sub:commSub(p)},
+    {n:"Логистика — доставка до покупателя", v:p.logistics_fwd==null?null:-p.logistics_fwd, kind:"step"},
+    {n:"Логистика — обратное плечо, невыкупы и возвраты", v:p.logistics_back==null?null:-p.logistics_back, kind:"step"},
+    {n:"Обработка товара", v:p.handling?-p.handling:0, kind:"step"},
+    {n:"Штрафы", v:p.penalty?-p.penalty:0, kind:"step"},
+    {n:"Реклама, доля FBS", v:p.ads?-p.ads:0, kind:"step"},
+    {n:"После вычетов WB", v:p.margin_wb, kind:"res"},
+    {n:"Себестоимость выкупленного", v:p.cogs==null?null:-p.cogs, kind:"step"},
+    {n:"Валовая маржа", v:p.gross, kind:"final"},
+  ];
+  const mx = Math.max(...rows.map(r=>Math.abs(r.v||0)))||1;
+  $("#wf").innerHTML = rows.map(r=>{
+    const neg = (r.v||0)<0, w = Math.round(Math.abs(r.v||0)/mx*100);
+    const cls = r.kind==="res" ? "res" : r.kind==="final" ? "res final" : "";
+    const nm = r.kind==="step" ? "name step" : "name";
+    const col = r.kind==="final" ? "var(--s3)" : neg ? "var(--crit)" : "var(--s1)";
+    const sub = r.sub ? `<div class="tiny" style="opacity:.7;margin-top:2px;font-weight:400">${r.sub}</div>` : "";
+    return `<tr class="${cls}"><td class="${nm}">${r.n}${sub}</td>
+      <td class="${neg?"neg":""}">${r.v==null?"—":(neg?"−":"")+fmt(Math.abs(r.v))}</td>
+      <td class="hide-s">${per(r.v)==null?"—":(neg?"−":"")+fmt(Math.abs(per(r.v)))}</td>
+      <td class="hide-s">${pb(r.v)==null?"—":(neg?"−":"")+fmt(Math.abs(pb(r.v)))}</td>
+      <td class="${neg?"neg":""}">${r.v==null||r.norev?"—":pct(r.v/rev)}</td>
+      <td class="hide-s"><span class="mini" style="width:${w}%;min-width:2px;background:${col}"></span></td></tr>`;
+  }).join("");
+  $("#wf-pill").textContent = p.ads_note ? "реклама: "+p.ads_note : "";
+  $("#wf-pill").className = "pill" + (p.ads_note ? " warn" : "");
+}
+
+/* ------------------------------------------------------------- тултип */
+const tip = $("#tip");
+function showTip(e, html){
+  tip.innerHTML = html; tip.classList.add("on");
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX+14, y = e.clientY-r.height-12;
+  if(x+r.width>innerWidth-8) x = e.clientX-r.width-14;
+  if(y<8) y = e.clientY+18;
+  tip.style.left = x+"px"; tip.style.top = y+"px";
+}
+const hideTip = () => tip.classList.remove("on");
+addEventListener("scroll", hideTip, true);
+
+/* ----------------------------------------------------- график: столбики */
+function barChart(el, data, opts){
+  const W=680, H=opts.h||210, ML=52, MR=8, MT=10, MB=26;
+  const iw=W-ML-MR, ih=H-MT-MB;
+  const keys = opts.keys, series = opts.series;
+  const tot = data.map(d=>keys.reduce((s,k)=>s+(d[k]||0),0));
+  const mx = Math.max(...tot, 1);
+  const step = niceStep(mx), ticks=[];
+  for(let v=0; v<=mx*1.0001; v+=step) ticks.push(v);
+  const y = v => MT+ih-(v/(ticks[ticks.length-1]||mx))*ih;
+  const bw = Math.max(3, Math.min(30, iw/data.length*0.72));
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  ticks.forEach(t=>{ s+=`<line class="gl" x1="${ML}" x2="${W-MR}" y1="${y(t)}" y2="${y(t)}"/>
+    <text class="ax" x="${ML-8}" y="${y(t)+4}" text-anchor="end">${opts.fmtY?opts.fmtY(t):kk(t)}</text>`; });
+  data.forEach((d,i)=>{
+    const cx = ML + (i+0.5)*iw/data.length;
+    let acc = 0;
+    keys.forEach((k,ki)=>{
+      const v = d[k]||0; if(!v) return;
+      const y0=y(acc+v), y1=y(acc), h=Math.max(1,y1-y0-(ki?2:0));
+      s+=`<rect x="${cx-bw/2}" y="${y0}" width="${bw}" height="${h}" rx="3" fill="${series[ki].color}"/>`;
+      acc+=v;
+    });
+    if(data.length<=32 && (data.length<=16 || i%2===0))
+      s+=`<text class="ax" x="${cx}" y="${H-8}" text-anchor="middle">${dmy(d.date)}</text>`;
+    s+=`<rect class="hit" x="${cx-iw/data.length/2}" y="${MT}" width="${iw/data.length}" height="${ih}" data-i="${i}"/>`;
+  });
+  s+=`<line class="gl" x1="${ML}" x2="${W-MR}" y1="${y(0)}" y2="${y(0)}" stroke="var(--axis)"/></svg>`;
+  el.innerHTML = s;
+  el.querySelectorAll(".hit").forEach(h=>{
+    h.onmousemove = e => { const d=data[+h.dataset.i];
+      showTip(e, `<b>${dmy(d.date)}, ${dow(d.date)}</b>` + keys.map((k,i)=>
+        `<div class="r"><span><i class="dot" style="background:${series[i].color};display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px"></i>${series[i].name}</span><span>${opts.fmtT?opts.fmtT(d[k]):money(d[k])}</span></div>`).join("")
+        + (keys.length>1?`<div class="r" style="border-top:1px solid var(--grid);margin-top:4px;padding-top:4px"><span>Итого</span><span>${opts.fmtT?opts.fmtT(keys.reduce((s,k)=>s+(d[k]||0),0)):money(keys.reduce((s,k)=>s+(d[k]||0),0))}</span></div>`:"")); };
+    h.onmouseleave = hideTip;
+  });
+}
+
+/* -------------------------------------------------------- график: линии */
+function lineChart(el, data, opts){
+  const W=680, H=opts.h||210, ML=52, MR=10, MT=10, MB=26;
+  const iw=W-ML-MR, ih=H-MT-MB;
+  const series = opts.series;
+  const vals = data.flatMap(d=>series.map(s=>d[s.key])).filter(v=>v!=null&&isFinite(v));
+  const mx = Math.max(...vals, opts.min||0.0001);
+  const step = niceStep(mx), ticks=[];
+  for(let v=0; v<=mx*1.0001; v+=step) ticks.push(v);
+  const top = ticks[ticks.length-1]||mx;
+  const x = i => ML + (data.length<2?iw/2:i*iw/(data.length-1));
+  const y = v => MT+ih-(v/top)*ih;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  ticks.forEach(t=>{ s+=`<line class="gl" x1="${ML}" x2="${W-MR}" y1="${y(t)}" y2="${y(t)}"/>
+    <text class="ax" x="${ML-8}" y="${y(t)+4}" text-anchor="end">${opts.fmtY?opts.fmtY(t):kk(t)}</text>`; });
+  series.forEach(se=>{
+    const pts = data.map((d,i)=>d[se.key]==null?null:[x(i),y(d[se.key])]).filter(Boolean);
+    if(!pts.length) return;
+    s+=`<path d="${pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ")}"
+         fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if(pts.length<=32) pts.forEach(p=>{ s+=`<circle cx="${p[0]}" cy="${p[1]}" r="3.2" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/>`; });
+  });
+  data.forEach((d,i)=>{
+    if(data.length<=32 && (data.length<=16 || i%2===0))
+      s+=`<text class="ax" x="${x(i)}" y="${H-8}" text-anchor="middle">${opts.xlab?opts.xlab(d):dmy(d.date)}</text>`;
+    s+=`<rect class="hit" x="${x(i)-iw/Math.max(data.length-1,1)/2}" y="${MT}" width="${iw/Math.max(data.length-1,1)}" height="${ih}" data-i="${i}"/>`;
+  });
+  s+=`<line x1="${ML}" x2="${W-MR}" y1="${y(0)}" y2="${y(0)}" stroke="var(--axis)"/></svg>`;
+  el.innerHTML = s;
+  el.querySelectorAll(".hit").forEach(h=>{
+    h.onmousemove = e => { const d=data[+h.dataset.i];
+      showTip(e, `<b>${opts.tlab?opts.tlab(d):dmy(d.date)+", "+dow(d.date)}</b>` + series.map(se=>
+        `<div class="r"><span><i class="dot" style="background:${se.color};display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px"></i>${se.name}</span><span>${opts.fmtT?opts.fmtT(d[se.key],d):pct(d[se.key])}</span></div>`).join("")); };
+    h.onmouseleave = hideTip;
+  });
+}
+function niceStep(mx){
+  if(mx<=4) return 1;
+  const raw = mx/4, p = Math.pow(10, Math.floor(Math.log10(raw||1)));
+  return [1,2,2.5,5,10].map(m=>m*p).find(v=>v>=raw) || p*10;
+}
+const legend = (el, items) => el.innerHTML = items.map(i=>`<span><i style="background:${i.color}"></i>${i.name}</span>`).join("");
+
+/* ------------------------------------------------------------- графики */
+function charts(){
+  // 1. заказы по дням
+  const cabs = D.cabinets;
+  const days = D.share_total.map(r=>r.date).filter(d=>{
+    return D.cohorts_total.some(c=>c.date===d);
+  });
+  const rows = days.map(d=>{
+    const o = {date:d};
+    cabs.forEach(c=>{ const r=(D.cohorts[c.key]||[]).find(x=>x.date===d); o[c.key]=r?r.raw_sum:0; });
+    return o;
+  });
+  const vis = CAB==="total" ? cabs : cabs.filter(c=>c.key===CAB);
+  barChart($("#ch1"), rows, {keys:vis.map(c=>c.key),
+    series:vis.map(c=>({name:c.title,color:COLOR[c.key]}))});
+  legend($("#lg1"), vis.map(c=>({name:c.title,color:COLOR[c.key]})));
+
+  // 2. доля FBS
+  const fbsFrom = Object.values(D.meta).map(m=>m.first_order).filter(Boolean).sort()[0];
+  const sd = D.share_total.filter(r=>!fbsFrom || r.date>=fbsFrom).map(r=>{
+    const o = {date:r.date, total:r.share_qty};
+    cabs.forEach(c=>{ const x=(D.share_days[c.key]||[]).find(z=>z.date===r.date); o[c.key]=x?x.share_qty:null; });
+    return o;
+  }).slice(-28);
+  const s2 = (CAB==="total"
+      ? [...cabs.map(c=>({key:c.key,name:c.title,color:COLOR[c.key]})),{key:"total",name:"Итого",color:COLOR.total}]
+      : [{key:CAB,name:(CABLIST.find(c=>c.key===CAB)||{}).title,color:COLOR[CAB]}]);
+  lineChart($("#ch2"), sd, {series:s2, fmtY:v=>pct(v,0), fmtT:v=>pct(v)});
+  legend($("#lg2"), s2);
+
+  // 3. по часам сегодня
+  const hsrc = CAB==="total" ? cabs.map(c=>D.hours[c.key]) : [D.hours[CAB]];
+  const hrows = [];
+  for(let h=0;h<24;h++){
+    const o = {date:String(h).padStart(2,"0"), h};
+    let any=0;
+    (CAB==="total"?cabs:cabs.filter(c=>c.key===CAB)).forEach(c=>{
+      const v=(D.hours[c.key]||{})[String(h)]; o[c.key]=v?v.qty:0; any+=o[c.key];
+    });
+    hrows.push(o);
+  }
+  const hv = CAB==="total" ? cabs : cabs.filter(c=>c.key===CAB);
+  const totalToday = hrows.reduce((s,r)=>s+hv.reduce((q,c)=>q+(r[c.key]||0),0),0);
+  $("#hr-sub").textContent = totalToday ? `${fmt(totalToday)} заказов с 00:00 МСК` : "сегодня заказов пока нет";
+  barChartHours($("#ch3"), hrows, hv);
+
+  // 4. выкуп по возрасту когорты
+  const src = CAB==="total" ? D.cohorts_total : D.cohorts[CAB];
+  const byAge = src.filter(c=>c.raw>=5).map(c=>({date:c.date, age:c.age, buyout:c.buyout,
+                 cancel:c.cancel_rate, raw:c.raw})).sort((a,b)=>a.age-b.age);
+  lineChart($("#ch4"), byAge, {
+    series:[{key:"buyout",name:"выкуплено",color:"var(--s3)"},{key:"cancel",name:"отменено / не выкупили",color:"var(--s2)"}],
+    fmtY:v=>pct(v,0), xlab:d=>d.age+"д",
+    tlab:d=>`заказ от ${dmy(d.date)} · ${d.age} дн. назад · ${fmt(d.raw)} шт`});
+  legend($("#lg4"), [{name:"выкуплено",color:"var(--s3)"},{name:"отменено / не выкупили",color:"var(--s2)"}]);
+}
+function barChartHours(el, rows, cabs){
+  const W=680,H=210,ML=44,MR=8,MT=10,MB=26,iw=W-ML-MR,ih=H-MT-MB;
+  const tot = rows.map(r=>cabs.reduce((s,c)=>s+(r[c.key]||0),0));
+  const mx = Math.max(...tot,1), step=niceStep(mx), ticks=[];
+  for(let v=0;v<=mx*1.0001;v+=step) ticks.push(v);
+  const top=ticks[ticks.length-1]||mx, y=v=>MT+ih-(v/top)*ih, bw=iw/24*0.68;
+  let s=`<svg viewBox="0 0 ${W} ${H}">`;
+  ticks.forEach(t=>{s+=`<line class="gl" x1="${ML}" x2="${W-MR}" y1="${y(t)}" y2="${y(t)}"/><text class="ax" x="${ML-8}" y="${y(t)+4}" text-anchor="end">${fmt(t)}</text>`;});
+  rows.forEach((r,i)=>{
+    const cx=ML+(i+0.5)*iw/24; let acc=0;
+    cabs.forEach((c,ci)=>{ const v=r[c.key]||0; if(!v)return;
+      const y0=y(acc+v),h=Math.max(1,y(acc)-y0-(ci?2:0));
+      s+=`<rect x="${cx-bw/2}" y="${y0}" width="${bw}" height="${h}" rx="3" fill="${COLOR[c.key]}"/>`; acc+=v; });
+    if(i%3===0) s+=`<text class="ax" x="${cx}" y="${H-8}" text-anchor="middle">${r.date}</text>`;
+    s+=`<rect class="hit" x="${cx-iw/24/2}" y="${MT}" width="${iw/24}" height="${ih}" data-i="${i}"/>`;
+  });
+  s+=`<line x1="${ML}" x2="${W-MR}" y1="${y(0)}" y2="${y(0)}" stroke="var(--axis)"/></svg>`;
+  el.innerHTML=s;
+  el.querySelectorAll(".hit").forEach(h=>{
+    h.onmousemove=e=>{const r=rows[+h.dataset.i];
+      showTip(e,`<b>${r.date}:00 — ${r.date}:59</b>`+cabs.map(c=>
+        `<div class="r"><span><i class="dot" style="background:${COLOR[c.key]};display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px"></i>${c.title}</span><span>${fmt(r[c.key]||0)} шт</span></div>`).join(""));};
+    h.onmouseleave=hideTip;
+  });
+}
+
+/* ------------------------------------------------------------- когорты */
+function cohorts(){
+  const src = (CAB==="total" ? D.cohorts_total : D.cohorts[CAB]).slice().reverse();
+  $("#coh").innerHTML = src.map(c=>`<tr>
+    <td>${dmy(c.date)}, ${dow(c.date)}</td>
+    <td>${c.age} дн.</td>
+    <td>${fmt(c.raw)}</td>
+    <td class="hide-s">${fmt(c.raw_sum)}</td>
+    <td class="hide-s">${fmt(c.bought)}</td>
+    <td class="${c.mature?"pos":""}">${pct(c.buyout)}</td>
+    <td class="hide-s">${fmt(c.cancel)}</td>
+    <td>${pct(c.cancel_rate)}</td>
+    <td>${fmt(c.pending)}</td>
+    <td class="hide-s">${fmt(c.ret)}</td>
+    <td class="tiny hide-s">${c.mature?"дозрела":"ещё едет"}</td></tr>`).join("");
+  const mat = src.filter(c=>c.mature);
+  const mr = mat.reduce((s,c)=>s+c.raw,0), mb = mat.reduce((s,c)=>s+c.bought,0);
+  $("#coh-pill").textContent = mr
+    ? `дозревших когорт: ${fmt(mr)} заказов, выкуп ${pct(mb/mr)}`
+    : `дозревших когорт (старше ${D.maturity_days} дн.) пока нет`;
+  $("#coh-pill").className = "pill " + (mr ? "ok" : "warn");
+}
+
+/* -------------------------------------------------------------- артикулы */
+const SKU_COLS = [
+  {k:"art", t:"Артикул", f:v=>esc(v), left:true},
+  {k:"subject", t:"Предмет", f:v=>esc(v), left:true},
+  {k:"raw", t:"Заказов", f:fmt},
+  {k:"raw_sum", t:"Сумма, ₽", f:fmt},
+  {k:"avg_price", t:"Ср. цена", f:fmt},
+  {k:"bought", t:"Выкуплено", f:fmt},
+  {k:"buyout_now", t:"% на сейчас", f:v=>pct(v,0)},
+  {k:"cost", t:"Себест., ₽", f:v=>v==null?"—":fmt(v)},
+  {k:"revenue", t:"Выручка ожид., ₽", f:v=>v==null?"—":fmt(v)},
+  {k:"margin_wb", t:"После WB, ₽", f:v=>v==null?"—":fmt(v)},
+  {k:"gross", t:"Валовая, ₽", f:v=>v==null?"—":fmt(v)},
+  {k:"gross_pct", t:"Валовая, % от выручки", f:v=>v==null?"—":pct(v)},
+  {k:"gross_per_order", t:"На заказ, ₽", f:v=>v==null?"—":fmt(v)},
+];
+let SKU_SORT = {k:"raw_sum", dir:-1};
+function skus(){
+  const list = CAB==="total"
+    ? D.cabinets.flatMap(c=>(D.sku[c.key]||[]).map(x=>({...x, cab:c.title})))
+    : (D.sku[CAB]||[]).map(x=>({...x, cab:(CABLIST.find(c=>c.key===CAB)||{}).title}));
+  const cols = CAB==="total" ? [{k:"cab",t:"Кабинет",f:esc,left:true},...SKU_COLS] : SKU_COLS;
+  $("#sku-h").innerHTML = cols.map(c=>
+    `<th data-k="${c.k}" style="cursor:pointer;${c.left?"text-align:left":""}">${c.t}${SKU_SORT.k===c.k?(SKU_SORT.dir<0?" ↓":" ↑"):""}</th>`).join("");
+  const sorted = list.sort((a,b)=>{
+    const va=a[SKU_SORT.k], vb=b[SKU_SORT.k];
+    if(va==null) return 1; if(vb==null) return -1;
+    return typeof va==="string" ? va.localeCompare(vb)*SKU_SORT.dir : (va-vb)*SKU_SORT.dir;
+  });
+  $("#sku").innerHTML = sorted.map(x=>`<tr>${cols.map(c=>
+    `<td${c.left?'':''} class="${c.k==="gross"&&x.gross<0?"neg":""}">${c.f(x[c.k])}</td>`).join("")}</tr>`).join("");
+  $("#sku-h").onclick = e => { const th=e.target.closest("th"); if(!th)return;
+    const k=th.dataset.k;
+    SKU_SORT = {k, dir: SKU_SORT.k===k ? -SKU_SORT.dir : -1}; skus(); };
+  const nocost = list.filter(x=>x.cost==null).length;
+  $("#sku-pill").textContent = nocost ? `без себестоимости: ${nocost} из ${list.length}` : `себестоимость есть у всех ${list.length}`;
+  $("#sku-pill").className = "pill " + (nocost ? "warn" : "ok");
+}
+
+/* ---------------------------------------------------------------- ставки */
+function ratesTable(){
+  const R = k => D.rates[k] || {};
+  const cabs = D.cabinets.map(c=>c.key);
+  const row = (name, f, src) => `<tr><td>${name}</td>` +
+    cabs.map(k=>`<td>${f(R(k))}</td>`).join("") +
+    (cabs.length<2?"<td>—</td>":"") + `<td class="tiny" style="text-align:left;white-space:normal">${src(R(cabs[0]))}</td></tr>`;
+  $("#rates").innerHTML = [
+    row("Выкуп от сырого заказа", r=>pct(r.buyout), r=>r.buyout_source||""),
+    row("Базовая комиссия WB<br><span class='tiny'>как объявлена в финотчёте</span>",
+        r=>r.base_commission==null?"—":pct(r.base_commission/100),
+        ()=>"поле commissionPercent. У FBS она выше, чем у FBW"),
+    row("Удерживает WB по факту<br><span class='tiny'>комиссия + эквайринг</span>",
+        r=>r.payout_share==null?"—":pct(1-r.payout_share),
+        r=>"проверено построчно: forPay = ценаПродавца × (1 − комиссия) − эквайринг. Ставка: "+(r.payout_source||"")),
+    row("Доходит до продавца", r=>pct(r.payout_share), r=>r.payout_source||""),
+    row("Логистика на сырой заказ", r=>money(r.logistics_per_order),
+        r=>"доставка "+money(r.logistics_fwd_per_order)+" + обратное плечо "+money(r.logistics_back_per_order)+
+           ". Считается на каждый заказ: невыкуп оплачивается в обе стороны"),
+    row("Обработка на заказ", r=>money(r.handling_per_order), ()=>"paidAcceptance из финотчёта"),
+    row("Штрафы на заказ", r=>money(r.penalty_per_order), ()=>"penalty из финотчёта кабинета"),
+    row("СПП (скидка WB покупателю)", r=>pct(r.spp_share),
+        ()=>"справочно. На FBS её оплачивает продавец — комиссия берётся с полной цены продавца, а покупатель платит меньше"),
+    row("Финотчёт закрыт по", r=>r.covered_to||"—", r=>"обновлено "+(r.updated_at||"").slice(0,16).replace("T"," ")),
+  ].join("");
+  const hdr = document.querySelector("#rates").closest("table").querySelector("thead tr");
+  hdr.innerHTML = "<th>Показатель</th>" + D.cabinets.map(c=>`<th>${c.title}</th>`).join("") + "<th style='text-align:left'>Откуда</th>";
+}
+
+$("#method").innerHTML = `
+<p><b>Что попадает в отчёт.</b> Только строки <code>warehouseType = «Склад продавца»</code> из метода
+<code>/api/v1/supplier/orders</code>. Модель FBW отброшена целиком и появляется единственный раз — как
+знаменатель в показателе «доля FBS в кабинете».</p>
+<p><b>Почему база — сырой заказ.</b> У Wildberries флаг <code>isCancel</code> ставится и на отмену клиентом,
+и на невыкуп, и приходит с задержкой в неделю-полторы. Поэтому у сегодняшнего дня отмен около 2 %,
+а у дозревшей когорты — 55–60 %. Считать экономику от «живых» заказов нельзя: свежий день был бы завышен
+вдвое. Все расчёты идут от полного числа заказов, а доля тех, кто дойдёт до выкупа, задаётся отдельной ставкой.</p>
+<p><b>Откуда ставки.</b> Финотчёт <code>/api/finance/v1/sales-reports/detailed</code> сшивается с заказами
+по <code>srid</code>: для когорты заказов, которую отчёт уже закрыл, суммируются реальные списания —
+комиссия, эквайринг, логистика прямая и обратная, обработка, штрафы. Дальше они делятся на число сырых
+заказов когорты. Это не тариф из справочника, а факт по вашему кабинету.</p>
+<p><b>Комиссия.</b> Проверено построчно на всех продажах: <code>forPay = ценаПродавца × (1 − commissionPercent)
+− эквайринг</code>, совпадение 100 % строк. Комиссия берётся с полной цены продавца, а не с той, что заплатил
+покупатель. У FBS она выше, чем у FBW (44,5 % против 41,5 % по вашим категориям), поэтому ставка берётся
+именно по FBS-продажам; если в кабинете их ещё мало, одалживается ставка соседнего кабинета того же бренда.</p>
+<p><b>Логистика — оба плеча.</b> Доставка до покупателя и обратный путь при невыкупе или возврате идут
+отдельными строками. Считаются на каждый сырой заказ, а не на выкуп: за невыкупленный заказ WB берёт
+и туда, и обратно. В когорте выходит около 1,5 логистического события на заказ.</p>
+<p><b>Логистика.</b> Берётся на каждый сырой заказ, а не на выкуп: WB платят и за доставку до покупателя,
+и за обратный путь невыкупа. В когорте выходит около 1,5 логистического события на заказ.</p>
+<p><b>Реклама.</b> Общий расход кабинета берётся из <code>/adv/v1/upd</code>. Большинство карточек продаётся
+одновременно по FBS и FBW одной кампанией, поэтому чисто FBS-расхода в API не существует — он разносится
+по доле FBS в заказах той же карточки. Единственная оценочная строка в отчёте.</p>
+<p><b>Себестоимость</b> применяется только к выкупленным единицам: возврат возвращается в сток и товар
+не потерян. Артикулам без заполненной себестоимости подставляется средняя по покрытым — процент покрытия
+показан над таблицей.</p>
+<p><b>Проценты считаются от выручки</b> — то есть от ожидаемого выкупа в ценах продавца,
+а не от суммы заказов. Так строка «комиссия 31 %» означает привычное: почти треть выручки
+забирает маркетплейс. Сумма заказов остаётся базой только для верхних двух строк таблицы,
+где выручка ещё не сформировалась.</p>
+<p><b>Сборка и отгрузка</b> берётся из другого раздела API — сборочных заданий
+(<code>/api/v3/orders</code>, <code>/api/v3/orders/status</code>, <code>/api/v3/supplies</code>),
+а не из статистики. «На сборке» — задание, по которому поставка ещё не закрыта и которое
+не отменено. Дата отгрузки — день закрытия поставки, в которой задание уехало: своей даты
+отгрузки у задания нет. Поэтому «создано» и «отгружено» за один день не совпадают —
+вчерашние заказы уезжают сегодня.</p>
+<p><b>Сроки доставки.</b> Отметки «прибыл в ПВЗ» в API Wildberries нет — есть только текущий
+статус заказа. Поэтому срок до ПВЗ оценивается когортно: для каждого возраста заказа считается
+доля уже доехавших до пункта выдачи или дальше, и берётся точка, где она переваливает за половину.
+Срок до выкупа считается сопоставлением заказа и продажи по <code>srid</code>. Срок возврата
+товара при невыкупе — по дате строки обратной логистики в финотчёте, поэтому он появляется
+с недельным лагом.</p>
+<p><b>Скорость отгрузки.</b> Часы считаются от создания сборочного задания до приёмки
+поставки на стороне WB (<code>scanDt</code>). Официальной формулировки, что именно WB берёт
+за конец отсчёта, в документации нет, поэтому взята более строгая база: приёмка происходит
+позже закрытия поставки на 0,6–1,9 часа, и около 5 % заданий из-за этого попадают в корзину
+хуже. Пока WB не проставил отметку приёмки, задание считается по закрытию поставки, и доля
+таких подписана под таблицей. База и сами пороги задаются в <code>config.json</code> —
+WB объявил их временными.</p>
+<p><b>Периоды календарные.</b> «Сегодня» и «неделя с пн» — неполные, считаются по момент обновления.
+«14 дней» и «28 дней» — последние полные дни, сегодняшний в них не входит.</p>`;
+
+/* ---------------------------------------------------------------- рендер */
+function render(){
+  document.querySelectorAll("#cabs button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.cab===CAB));
+  document.querySelectorAll("#pers button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.per===PER));
+  $("#rangebox").style.display = PER==="range" ? "inline-flex" : "none";
+  flags(); kpis(); assembly(); waterfall(); charts(); cohorts(); skus();
+}
+function drawAll(){ charts(); assembly(); }
+ratesTable(); render();
+addEventListener("resize", ()=>{ clearTimeout(window.__rt); window.__rt=setTimeout(charts,150); });
+</script>
+</body>
+</html>
