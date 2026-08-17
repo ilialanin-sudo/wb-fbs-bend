@@ -1,0 +1,78 @@
+{
+  "brand": "BEND",
+  "cabinets": [
+    {
+      "key": "ooo",
+      "title": "ООО",
+      "env": "WB_TOKEN_OOO"
+    },
+    {
+      "key": "ip",
+      "title": "ИП",
+      "env": "WB_TOKEN_IP"
+    }
+  ],
+  "window_days": 28,
+  "maturity_days": 12,
+  "min_mature_orders": 150,
+  "ads_mode": "fbs_share",
+  "rates_fallback": "cabinet",
+  "override": {
+    "ooo": {
+      "buyout": null,
+      "payout_share": null,
+      "logistics_per_order": null,
+      "handling_per_order": null,
+      "penalty_per_order": null
+    },
+    "ip": {
+      "buyout": null,
+      "payout_share": null,
+      "logistics_per_order": null,
+      "handling_per_order": null,
+      "penalty_per_order": null
+    }
+  },
+  "speed_basis": "scan",
+  "speed_buckets": [
+    {
+      "to": 13,
+      "label": "до 13 ч",
+      "delta": -5.0
+    },
+    {
+      "to": 42,
+      "label": "13–42 ч",
+      "delta": -3.5
+    },
+    {
+      "to": 48,
+      "label": "42–48 ч",
+      "delta": 0.0
+    },
+    {
+      "to": 54,
+      "label": "48–54 ч",
+      "per_hour": 0.3,
+      "from_hour": 48
+    },
+    {
+      "to": 60,
+      "label": "54–60 ч",
+      "per_hour": 0.35,
+      "from_hour": 48
+    },
+    {
+      "to": null,
+      "label": "свыше 60 ч",
+      "per_hour": 0.45,
+      "from_hour": 48
+    }
+  ],
+  "returns_match": "по МП",
+  "pvz_storage": {
+    "free_days": 3,
+    "price_per_day": 10,
+    "dispose_day": 8
+  }
+}

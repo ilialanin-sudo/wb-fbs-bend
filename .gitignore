@@ -1,0 +1,7 @@
+data/
+dist/
+cost.json
+__pycache__/
+*.pyc
+dashboard_data.json
+.env
